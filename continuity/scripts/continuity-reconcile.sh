@@ -1,14 +1,14 @@
 #!/bin/bash
-# memory-reconcile.sh - Daily financial and action reconciliation
+# continuity-reconcile.sh - Daily financial and action reconciliation
 # Version: 0.1.0
-# Usage: memory-reconcile.sh [options]
+# Usage: continuity-reconcile.sh [options]
 
-MEMORY_DIR="${MEMORY_BASE_DIR:-$HOME/clawd/memory}"
-REPORT_FILE="$MEMORY_DIR/reports/reconciliation-$(date +%Y-%m-%d).md"
+CONTINUITY_DIR="${CONTINUITY_BASE_DIR:-$HOME/clawd/continuity}"
+REPORT_FILE="$CONTINUITY_DIR/reports/reconciliation-$(date +%Y-%m-%d).md"
 YESTERDAY=$(date -d "yesterday" +%Y-%m-%d 2>/dev/null || date -v-1d +%Y-%m-%d 2>/dev/null || echo "yesterday")
 
-mkdir -p "$MEMORY_DIR/reports"
-chmod 700 "$MEMORY_DIR/reports"
+mkdir -p "$CONTINUITY_DIR/reports"
+chmod 700 "$CONTINUITY_DIR/reports"
 
 # Colors for terminal output (if supported)
 RED='\033[0;31m'
@@ -36,14 +36,14 @@ echo "Date: $(date +%Y-%m-%d)" >> "$REPORT_FILE"
 echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$REPORT_FILE"
 echo "" >> "$REPORT_FILE"
 
-echo "=== Memory Reconciliation Report ==="
+echo "=== Continuity Reconciliation Report ==="
 echo "Date: $(date +%Y-%m-%d)"
 echo ""
 
 # 1. Count today's actions
 echo "## Action Count" >> "$REPORT_FILE"
-TODAY_STREAM="$MEMORY_DIR/action-stream-$(date +%Y-%m-%d).jsonl"
-YESTERDAY_STREAM="$MEMORY_DIR/action-stream-$YESTERDAY.jsonl"
+TODAY_STREAM="$CONTINUITY_DIR/action-stream-$(date +%Y-%m-%d).jsonl"
+YESTERDAY_STREAM="$CONTINUITY_DIR/action-stream-$YESTERDAY.jsonl"
 
 if [ -f "$TODAY_STREAM" ]; then
   TODAY_COUNT=$(wc -l < "$TODAY_STREAM")
@@ -106,24 +106,24 @@ echo "" >> "$REPORT_FILE"
 echo "## Health Check" >> "$REPORT_FILE"
 
 # Check emergency log
-if [ -f "$MEMORY_DIR/EMERGENCY_RECOVERY.jsonl" ]; then
-  EMERGENCY_COUNT=$(wc -l < "$MEMORY_DIR/EMERGENCY_RECOVERY.jsonl")
+if [ -f "$CONTINUITY_DIR/EMERGENCY_RECOVERY.jsonl" ]; then
+  EMERGENCY_COUNT=$(wc -l < "$CONTINUITY_DIR/EMERGENCY_RECOVERY.jsonl")
   if [ "$EMERGENCY_COUNT" -gt 0 ]; then
     log_error "EMERGENCY LOG HAS $EMERGENCY_COUNT ENTRIES!"
-    echo "CRITICAL: Review $MEMORY_DIR/EMERGENCY_RECOVERY.jsonl immediately" >> "$REPORT_FILE"
+    echo "CRITICAL: Review $CONTINUITY_DIR/EMERGENCY_RECOVERY.jsonl immediately" >> "$REPORT_FILE"
   fi
 fi
 
 # Check alerts
-if [ -f "$MEMORY_DIR/ALERTS.jsonl" ]; then
-  ALERT_COUNT=$(wc -l < "$MEMORY_DIR/ALERTS.jsonl" 2>/dev/null || echo 0)
+if [ -f "$CONTINUITY_DIR/ALERTS.jsonl" ]; then
+  ALERT_COUNT=$(wc -l < "$CONTINUITY_DIR/ALERTS.jsonl" 2>/dev/null || echo 0)
   if [ "$ALERT_COUNT" -gt 0 ]; then
     log_warn "$ALERT_COUNT alerts in alert log"
   fi
 fi
 
 # Check disk space
-AVAILABLE=$(df -k "$MEMORY_DIR" 2>/dev/null | awk 'NR==2 {print $4}')
+AVAILABLE=$(df -k "$CONTINUITY_DIR" 2>/dev/null | awk 'NR==2 {print $4}')
 if [ -n "$AVAILABLE" ]; then
   AVAILABLE_MB=$((AVAILABLE / 1024))
   if [ "$AVAILABLE" -lt 10240 ]; then  # Less than 10MB
@@ -136,7 +136,7 @@ else
 fi
 
 # Check active workflows
-ACTIVE_WORKFLOWS=$(find "$MEMORY_DIR/workflows/active" -name "*.json" 2>/dev/null | wc -l)
+ACTIVE_WORKFLOWS=$(find "$CONTINUITY_DIR/workflows/active" -name "*.json" 2>/dev/null | wc -l)
 if [ "$ACTIVE_WORKFLOWS" -gt 0 ]; then
   log_info "Active workflows: $ACTIVE_WORKFLOWS"
 else
@@ -176,7 +176,7 @@ echo ""
 echo "=== Report saved to: $REPORT_FILE ==="
 
 # Return error code if there were critical issues
-if [ -f "$MEMORY_DIR/EMERGENCY_RECOVERY.jsonl" ] && [ $(wc -l < "$MEMORY_DIR/EMERGENCY_RECOVERY.jsonl") -gt 0 ]; then
+if [ -f "$CONTINUITY_DIR/EMERGENCY_RECOVERY.jsonl" ] && [ $(wc -l < "$CONTINUITY_DIR/EMERGENCY_RECOVERY.jsonl") -gt 0 ]; then
   exit 1
 fi
 

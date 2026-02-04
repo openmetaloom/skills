@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/openmetaloom/skills/tree/main/memory/schemas/action-stream-v0.1.json",
+  "$id": "https://github.com/openmetaloom/skills/tree/main/continuity/schemas/action-stream-v0.1.json",
   "title": "Action Stream Schema v0.1.0",
   "description": "Schema for AI agent action stream logging with integrity verification",
   "type": "object",

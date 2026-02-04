@@ -1,25 +1,25 @@
 #!/bin/bash
-# memory.sh - Core memory logging functions for AI agents
+# continuity.sh - Core continuity logging functions for AI agents
 # Version: 0.1.0 - Hardened for production use
-# 
-# SAFETY: Memory files contain private data. NEVER commit to git.
-# Keep in ~/clawd/memory/ only, with proper .gitignore rules.
+#
+# SAFETY: Continuity files contain private data. NEVER commit to git.
+# Keep in ~/clawd/continuity/ only, with proper .gitignore rules.
 
-MEMORY_BASE_DIR="${MEMORY_BASE_DIR:-$HOME/clawd/memory}"
-MEMORY_ACTION_STREAM="$MEMORY_BASE_DIR/action-stream-$(date +%Y-%m-%d).jsonl"
-MEMORY_EMERGENCY_LOG="$MEMORY_BASE_DIR/EMERGENCY_RECOVERY.jsonl"
-MEMORY_SEQUENCE_FILE="$MEMORY_BASE_DIR/.sequence"
-MEMORY_LAST_HASH_FILE="$MEMORY_BASE_DIR/.last_hash"
+CONTINUITY_BASE_DIR="${CONTINUITY_BASE_DIR:-$HOME/clawd/continuity}"
+CONTINUITY_ACTION_STREAM="$CONTINUITY_BASE_DIR/action-stream-$(date +%Y-%m-%d).jsonl"
+CONTINUITY_EMERGENCY_LOG="$CONTINUITY_BASE_DIR/EMERGENCY_RECOVERY.jsonl"
+CONTINUITY_SEQUENCE_FILE="$CONTINUITY_BASE_DIR/.sequence"
+CONTINUITY_LAST_HASH_FILE="$CONTINUITY_BASE_DIR/.last_hash"
 
 # Minimum disk space required (10MB in KB)
 MIN_DISK_SPACE_KB=10240
 
 # Ensure directory exists with proper permissions
-mkdir -p "$MEMORY_BASE_DIR"/{conversations,actions,workflows,backups}
-chmod 700 "$MEMORY_BASE_DIR"
+mkdir -p "$CONTINUITY_BASE_DIR"/{conversations,actions,workflows,backups}
+chmod 700 "$CONTINUITY_BASE_DIR"
 
 # Generate proper UUID v4
-memory_uuid() {
+continuity_uuid() {
   if command -v uuidgen >/dev/null 2>&1; then
     uuidgen
   elif [ -r /proc/sys/kernel/random/uuid ]; then
@@ -46,28 +46,28 @@ memory_uuid() {
 }
 
 # Get next sequence number (monotonic, survives restarts)
-memory_next_sequence() {
+continuity_next_sequence() {
   local seq=0
-  if [ -f "$MEMORY_SEQUENCE_FILE" ]; then
-    seq=$(cat "$MEMORY_SEQUENCE_FILE" 2>/dev/null || echo 0)
+  if [ -f "$CONTINUITY_SEQUENCE_FILE" ]; then
+    seq=$(cat "$CONTINUITY_SEQUENCE_FILE" 2>/dev/null || echo 0)
   fi
   seq=$((seq + 1))
-  echo "$seq" > "$MEMORY_SEQUENCE_FILE"
+  echo "$seq" > "$CONTINUITY_SEQUENCE_FILE"
   echo "$seq"
 }
 
 # Get previous action hash for chain
-memory_previous_hash() {
-  if [ -f "$MEMORY_LAST_HASH_FILE" ]; then
-    cat "$MEMORY_LAST_HASH_FILE" 2>/dev/null || echo "genesis"
+continuity_previous_hash() {
+  if [ -f "$CONTINUITY_LAST_HASH_FILE" ]; then
+    cat "$CONTINUITY_LAST_HASH_FILE" 2>/dev/null || echo "genesis"
   else
     echo "genesis"
   fi
 }
 
 # Check disk space before critical operations
-memory_check_disk_space() {
-  local available=$(df -k "$MEMORY_BASE_DIR" 2>/dev/null | awk 'NR==2 {print $4}')
+continuity_check_disk_space() {
+  local available=$(df -k "$CONTINUITY_BASE_DIR" 2>/dev/null | awk 'NR==2 {print $4}')
   if [ -z "$available" ] || [ "$available" -lt "$MIN_DISK_SPACE_KB" ]; then
     echo "CRITICAL: Low disk space ($available KB available, need $MIN_DISK_SPACE_KB KB)" >&2
     return 1
@@ -76,16 +76,16 @@ memory_check_disk_space() {
 }
 
 # Calculate integrity hash for action
-memory_calculate_hash() {
+continuity_calculate_hash() {
   local content="$1"
   local previous_hash="$2"
   echo -n "$content$previous_hash" | sha256sum | cut -d' ' -f1
 }
 
 # Log an action with synchronous write and integrity verification
-# Usage: memory_log_action <type> <platform> <description> [cost] [proof] [metadata_json]
+# Usage: continuity_log_action <type> <platform> <description> [cost] [proof] [metadata_json]
 # Returns: 0 on success, 1 on failure
-memory_log_action() {
+continuity_log_action() {
   local type=$1
   local platform=$2
   local description=$3
@@ -93,25 +93,25 @@ memory_log_action() {
   local proof=${5:-"null"}
   local metadata=${6:-"{}"}
   local severity=${7:-"medium"}
-  
+
   # Check disk space first
-  if ! memory_check_disk_space; then
+  if ! continuity_check_disk_space; then
     # Emergency: try to write to emergency log anyway
     local emergency_entry="{\"timestamp\":\"$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")\",\"type\":\"$type\",\"error\":\"disk_space_low\"}"
-    echo "$emergency_entry" >> "$MEMORY_EMERGENCY_LOG" 2>/dev/null
+    echo "$emergency_entry" >> "$CONTINUITY_EMERGENCY_LOG" 2>/dev/null
     return 1
   fi
-  
-  local id=$(memory_uuid)
+
+  local id=$(continuity_uuid)
   if [ $? -ne 0 ] || [ -z "$id" ]; then
     echo "CRITICAL: Failed to generate UUID" >&2
     return 1
   fi
   
   local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
-  local sequence=$(memory_next_sequence)
+  local sequence=$(continuity_next_sequence)
   local session_id="${OPENCLAW_SESSION_ID:-$(hostname)-$$-$(date +%s)}"
-  local previous_hash=$(memory_previous_hash)
+  local previous_hash=$(continuity_previous_hash)
   
   # Ensure cost is valid JSON (null or number, never empty string)
   case "$cost" in
@@ -126,7 +126,7 @@ EOF
 )
   
   # Calculate integrity hash
-  local current_hash=$(memory_calculate_hash "$content" "$previous_hash")
+  local current_hash=$(continuity_calculate_hash "$content" "$previous_hash")
   
   # Add integrity to JSON (compact format for JSONL)
   local json=$(echo "$content" | jq -c --arg hash "$current_hash" --arg prev "$previous_hash" \
@@ -135,35 +135,35 @@ EOF
   # Validate JSON before writing
   if ! echo "$json" | jq -e . >/dev/null 2>&1; then
     echo "CRITICAL: Generated invalid JSON" >&2
-    echo "$json" >> "$MEMORY_EMERGENCY_LOG" 2>/dev/null
+    echo "$json" >> "$CONTINUITY_EMERGENCY_LOG" 2>/dev/null
     return 1
   fi
   
   # Attempt synchronous write
-  if echo "$json" >> "$MEMORY_ACTION_STREAM" && sync; then
+  if echo "$json" >> "$CONTINUITY_ACTION_STREAM" && sync; then
     # Update last hash for chain
-    echo "$current_hash" > "$MEMORY_LAST_HASH_FILE"
-    chmod 600 "$MEMORY_ACTION_STREAM" "$MEMORY_LAST_HASH_FILE"
+    echo "$current_hash" > "$CONTINUITY_LAST_HASH_FILE"
+    chmod 600 "$CONTINUITY_ACTION_STREAM" "$CONTINUITY_LAST_HASH_FILE"
     echo "✓ Logged: $type on $platform (seq: $sequence)"
     echo "$id"
     return 0
   else
     # Write failed - emergency recovery
     echo "CRITICAL: Failed to write to action stream" >&2
-    echo "$json" >> "$MEMORY_EMERGENCY_LOG" 2>/dev/null
-    chmod 600 "$MEMORY_EMERGENCY_LOG"
-    
+    echo "$json" >> "$CONTINUITY_EMERGENCY_LOG" 2>/dev/null
+    chmod 600 "$CONTINUITY_EMERGENCY_LOG"
+
     # Alert operator
-    echo "{\"alert\":\"write_failure\",\"timestamp\":\"$timestamp\",\"action\":\"$type\"}" >> "$MEMORY_BASE_DIR/ALERTS.jsonl" 2>/dev/null
+    echo "{\"alert\":\"write_failure\",\"timestamp\":\"$timestamp\",\"action\":\"$type\"}" >> "$CONTINUITY_BASE_DIR/ALERTS.jsonl" 2>/dev/null
     
     return 1
   fi
 }
 
 # Log a critical action (financial, contractual) - MUST check return value
-# Usage: if ! memory_log_critical ...; then echo "ABORT"; exit 1; fi
-memory_log_critical() {
-  if ! memory_log_action "$1" "$2" "$3" "$4" "$5" "$6" "critical"; then
+# Usage: if ! continuity_log_critical ...; then echo "ABORT"; exit 1; fi
+continuity_log_critical() {
+  if ! continuity_log_action "$1" "$2" "$3" "$4" "$5" "$6" "critical"; then
     echo "CRITICAL: Failed to log critical action. ABORTING." >&2
     return 1
   fi
@@ -171,11 +171,11 @@ memory_log_critical() {
 }
 
 # Create workflow checkpoint
-memory_checkpoint_workflow() {
+continuity_checkpoint_workflow() {
   local workflow_id=$1
-  local workflow_file="$MEMORY_BASE_DIR/workflows/active/$workflow_id.json"
-  
-  mkdir -p "$MEMORY_BASE_DIR/workflows/active"
+  local workflow_file="$CONTINUITY_BASE_DIR/workflows/active/$workflow_id.json"
+
+  mkdir -p "$CONTINUITY_BASE_DIR/workflows/active"
   cat > "$workflow_file"
   chmod 600 "$workflow_file"
   sync
@@ -184,25 +184,25 @@ memory_checkpoint_workflow() {
 }
 
 # Pre-compaction checkpoint
-memory_pre_compaction_checkpoint() {
-  local manifest_file="$MEMORY_BASE_DIR/COMPACTION_MANIFEST.json"
+continuity_pre_compaction_checkpoint() {
+  local manifest_file="$CONTINUITY_BASE_DIR/COMPACTION_MANIFEST.json"
   local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   local session_id="${OPENCLAW_SESSION_ID:-$(hostname)-$$-$(date +%s)}"
-  
+
   # Count uncommitted actions
   local uncommitted=0
-  if [ -f "$MEMORY_ACTION_STREAM" ]; then
-    uncommitted=$(wc -l < "$MEMORY_ACTION_STREAM" 2>/dev/null || echo 0)
+  if [ -f "$CONTINUITY_ACTION_STREAM" ]; then
+    uncommitted=$(wc -l < "$CONTINUITY_ACTION_STREAM" 2>/dev/null || echo 0)
   fi
-  
+
   # Find active workflows
   local workflows=0
-  if [ -d "$MEMORY_BASE_DIR/workflows/active" ]; then
-    workflows=$(find "$MEMORY_BASE_DIR/workflows/active" -name "*.json" 2>/dev/null | wc -l)
+  if [ -d "$CONTINUITY_BASE_DIR/workflows/active" ]; then
+    workflows=$(find "$CONTINUITY_BASE_DIR/workflows/active" -name "*.json" 2>/dev/null | wc -l)
   fi
-  
+
   # Get disk space
-  local disk_available=$(df -k "$MEMORY_BASE_DIR" 2>/dev/null | awk 'NR==2 {print $4}')
+  local disk_available=$(df -k "$CONTINUITY_BASE_DIR" 2>/dev/null | awk 'NR==2 {print $4}')
   
   cat > "$manifest_file" <<EOF
 {
@@ -211,8 +211,8 @@ memory_pre_compaction_checkpoint() {
   "uncommitted_actions": $uncommitted,
   "active_workflows": $workflows,
   "disk_space_kb": $disk_available,
-  "sequence": $(cat "$MEMORY_SEQUENCE_FILE" 2>/dev/null || echo 0),
-  "last_hash": "$(cat "$MEMORY_LAST_HASH_FILE" 2>/dev/null || echo "genesis")",
+  "sequence": $(cat "$CONTINUITY_SEQUENCE_FILE" 2>/dev/null || echo 0),
+  "last_hash": "$(cat "$CONTINUITY_LAST_HASH_FILE" 2>/dev/null || echo "genesis")",
   "checklist": {
     "actions_persisted": true,
     "workflows_checkpoints": true,
@@ -230,15 +230,15 @@ EOF
 }
 
 # Verify continuity on restart with integrity checks
-memory_verify_continuity() {
-  echo "=== Memory Continuity Verification ==="
+continuity_verify_continuity() {
+  echo "=== Continuity Verification ==="
   echo ""
-  
+
   local errors=0
-  
+
   # Check 1: Action stream exists and is valid JSONL
-  if [ -f "$MEMORY_ACTION_STREAM" ]; then
-    local today_count=$(wc -l < "$MEMORY_ACTION_STREAM" 2>/dev/null || echo 0)
+  if [ -f "$CONTINUITY_ACTION_STREAM" ]; then
+    local today_count=$(wc -l < "$CONTINUITY_ACTION_STREAM" 2>/dev/null || echo 0)
     local valid_count=0
     local invalid_count=0
     
@@ -248,7 +248,7 @@ memory_verify_continuity() {
       else
         invalid_count=$((invalid_count + 1))
       fi
-    done < "$MEMORY_ACTION_STREAM"
+    done < "$CONTINUITY_ACTION_STREAM"
     
     echo "✓ Today's action stream: $today_count entries ($valid_count valid, $invalid_count invalid)"
     
@@ -262,15 +262,15 @@ memory_verify_continuity() {
   fi
   
   # Check 2: Verify integrity chain
-  if [ -f "$MEMORY_LAST_HASH_FILE" ]; then
-    local last_hash=$(cat "$MEMORY_LAST_HASH_FILE" 2>/dev/null)
+  if [ -f "$CONTINUITY_LAST_HASH_FILE" ]; then
+    local last_hash=$(cat "$CONTINUITY_LAST_HASH_FILE" 2>/dev/null)
     echo "✓ Last hash recorded: ${last_hash:0:16}..."
   else
     echo "⚠ No last hash file (first run or corrupted)"
   fi
-  
+
   # Check 3: Disk space
-  if memory_check_disk_space; then
+  if continuity_check_disk_space; then
     echo "✓ Disk space sufficient"
   else
     echo "✗ Disk space CRITICAL"
@@ -279,22 +279,22 @@ memory_verify_continuity() {
   
   # Check 4: Active workflows
   local active_wf=0
-  if [ -d "$MEMORY_BASE_DIR/workflows/active" ]; then
-    active_wf=$(find "$MEMORY_BASE_DIR/workflows/active" -name "*.json" 2>/dev/null | wc -l)
+  if [ -d "$CONTINUITY_BASE_DIR/workflows/active" ]; then
+    active_wf=$(find "$CONTINUITY_BASE_DIR/workflows/active" -name "*.json" 2>/dev/null | wc -l)
   fi
   echo "ℹ Active workflows: $active_wf"
-  
+
   # Check 5: Backup directory
-  if [ -d "$MEMORY_BASE_DIR/backups" ]; then
-    local backup_count=$(ls -1 "$MEMORY_BASE_DIR/backups" 2>/dev/null | wc -l)
+  if [ -d "$CONTINUITY_BASE_DIR/backups" ]; then
+    local backup_count=$(ls -1 "$CONTINUITY_BASE_DIR/backups" 2>/dev/null | wc -l)
     echo "✓ Backup directory: $backup_count files"
   else
     echo "⚠ No backup directory found"
   fi
-  
+
   # Check 6: Emergency log
-  if [ -f "$MEMORY_EMERGENCY_LOG" ]; then
-    local emergency_count=$(wc -l < "$MEMORY_EMERGENCY_LOG" 2>/dev/null || echo 0)
+  if [ -f "$CONTINUITY_EMERGENCY_LOG" ]; then
+    local emergency_count=$(wc -l < "$CONTINUITY_EMERGENCY_LOG" 2>/dev/null || echo 0)
     if [ "$emergency_count" -gt 0 ]; then
       echo "✗ EMERGENCY LOG HAS $emergency_count ENTRIES! Review immediately!" >&2
       errors=$((errors + 1))
@@ -312,7 +312,7 @@ memory_verify_continuity() {
 }
 
 # Validate integrity of entire action stream
-memory_validate_integrity() {
+continuity_validate_integrity() {
   echo "=== Validating Action Stream Integrity ==="
   
   local previous_hash="genesis"
@@ -347,7 +347,7 @@ memory_validate_integrity() {
     
     # Calculate expected hash (without integrity field, compact format)
     local content=$(echo "$line" | jq -c 'del(.action._integrity)')
-    local expected_hash=$(memory_calculate_hash "$content" "$previous_hash")
+    local expected_hash=$(continuity_calculate_hash "$content" "$previous_hash")
     
     if [ "$stored_hash" != "$expected_hash" ]; then
       echo "✗ Line $line_num: Hash mismatch! Stored: $stored_hash, Expected: $expected_hash" >&2
@@ -355,35 +355,35 @@ memory_validate_integrity() {
     fi
     
     previous_hash="$stored_hash"
-  done < "$MEMORY_ACTION_STREAM"
-  
+  done < "$CONTINUITY_ACTION_STREAM"
+
   echo ""
   if [ "$errors" -eq 0 ]; then
     echo "✅ Integrity validation PASSED ($line_num entries verified)"
   else
     echo "❌ Integrity validation FAILED ($errors errors in $line_num entries)"
   fi
-  
+
   return $errors
 }
 
 # Manual backup trigger with safety checks
-memory_backup_manual() {
+continuity_backup_manual() {
   local description="${1:-manual}"
-  
-  if ! memory_check_disk_space; then
+
+  if ! continuity_check_disk_space; then
     echo "✗ Cannot backup: insufficient disk space" >&2
     return 1
   fi
-  
-  if [ -f "$MEMORY_BASE_DIR/scripts/memory-backup.sh" ]; then
-    "$MEMORY_BASE_DIR/scripts/memory-backup.sh" manual "$description"
+
+  if [ -f "$CONTINUITY_BASE_DIR/scripts/continuity-backup.sh" ]; then
+    "$CONTINUITY_BASE_DIR/scripts/continuity-backup.sh" manual "$description"
   else
     # Fallback: simple copy
     local timestamp=$(date +%Y%m%d-%H%M%S)
-    local backup_file="$MEMORY_BASE_DIR/backups/action-stream-manual-$description-$timestamp.jsonl"
-    
-    if cp "$MEMORY_ACTION_STREAM" "$backup_file" 2>/dev/null; then
+    local backup_file="$CONTINUITY_BASE_DIR/backups/action-stream-manual-$description-$timestamp.jsonl"
+
+    if cp "$CONTINUITY_ACTION_STREAM" "$backup_file" 2>/dev/null; then
       chmod 600 "$backup_file"
       echo "✓ Manual backup created: $backup_file"
     else
@@ -394,20 +394,20 @@ memory_backup_manual() {
 }
 
 # Health check endpoint
-memory_health_check() {
+continuity_health_check() {
   local healthy=true
   local status="healthy"
   local issues=()
-  
+
   # Check disk space
-  if ! memory_check_disk_space; then
+  if ! continuity_check_disk_space; then
     healthy=false
     status="critical"
     issues+=("low_disk_space")
   fi
-  
+
   # Check writeable
-  local test_file="$MEMORY_BASE_DIR/.write_test"
+  local test_file="$CONTINUITY_BASE_DIR/.write_test"
   if ! echo "test" > "$test_file" 2>/dev/null; then
     healthy=false
     status="critical"
@@ -415,10 +415,10 @@ memory_health_check() {
   else
     rm -f "$test_file"
   fi
-  
+
   # Check emergency log
-  if [ -f "$MEMORY_EMERGENCY_LOG" ]; then
-    local emergency_count=$(wc -l < "$MEMORY_EMERGENCY_LOG" 2>/dev/null || echo 0)
+  if [ -f "$CONTINUITY_EMERGENCY_LOG" ]; then
+    local emergency_count=$(wc -l < "$CONTINUITY_EMERGENCY_LOG" 2>/dev/null || echo 0)
     if [ "$emergency_count" -gt 0 ]; then
       healthy=false
       status="warning"
@@ -434,23 +434,23 @@ memory_health_check() {
   "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")",
   "issues": $(printf '%s\n' "${issues[@]}" | jq -R . | jq -s .),
   "metrics": {
-    "today_actions": $(wc -l < "$MEMORY_ACTION_STREAM" 2>/dev/null || echo 0),
-    "disk_available_kb": $(df -k "$MEMORY_BASE_DIR" 2>/dev/null | awk 'NR==2 {print $4}'),
-    "active_workflows": $(find "$MEMORY_BASE_DIR/workflows/active" -name "*.json" 2>/dev/null | wc -l)
+    "today_actions": $(wc -l < "$CONTINUITY_ACTION_STREAM" 2>/dev/null || echo 0),
+    "disk_available_kb": $(df -k "$CONTINUITY_BASE_DIR" 2>/dev/null | awk 'NR==2 {print $4}'),
+    "active_workflows": $(find "$CONTINUITY_BASE_DIR/workflows/active" -name "*.json" 2>/dev/null | wc -l)
   }
 }
 EOF
 }
 
 # Query actions by type and/or platform
-# Usage: memory_query [--type=TYPE] [--platform=PLATFORM] [--since=DATE] [--limit=N]
-memory_query() {
+# Usage: continuity_query [--type=TYPE] [--platform=PLATFORM] [--since=DATE] [--limit=N]
+continuity_query() {
   local type_filter=""
   local platform_filter=""
   local since_date=""
   local limit=50
-  local stream="$MEMORY_ACTION_STREAM"
-  
+  local stream="$CONTINUITY_ACTION_STREAM"
+
   # Parse arguments
   for arg in "$@"; do
     case "$arg" in
@@ -458,9 +458,9 @@ memory_query() {
       --platform=*) platform_filter="${arg#*=}" ;;
       --since=*) since_date="${arg#*=}" ;;
       --limit=*) limit="${arg#*=}" ;;
-      --date=*) 
+      --date=*)
         local date="${arg#*=}"
-        stream="$MEMORY_BASE_DIR/action-stream-$date.jsonl"
+        stream="$CONTINUITY_BASE_DIR/action-stream-$date.jsonl"
         ;;
     esac
   done
@@ -495,10 +495,10 @@ memory_query() {
 }
 
 # Get last action (optionally filtered by platform)
-# Usage: memory_last_action [platform]
-memory_last_action() {
+# Usage: continuity_last_action [platform]
+continuity_last_action() {
   local platform_filter="${1:-}"
-  local stream="$MEMORY_ACTION_STREAM"
+  local stream="$CONTINUITY_ACTION_STREAM"
   
   if [ ! -f "$stream" ]; then
     echo "No action stream found"
@@ -525,8 +525,8 @@ memory_last_action() {
 }
 
 # List active workflows
-memory_list_workflows() {
-  local wf_dir="$MEMORY_BASE_DIR/workflows/active"
+continuity_list_workflows() {
+  local wf_dir="$CONTINUITY_BASE_DIR/workflows/active"
   
   if [ ! -d "$wf_dir" ]; then
     echo "No active workflows directory"
@@ -550,122 +550,109 @@ memory_list_workflows() {
   fi
 }
 
-# Show memory status dashboard
-memory_status() {
+# Show continuity status dashboard
+continuity_status() {
   echo "┌─────────────────────────────────────┐"
-  echo "│ Memory Status                       │"
+  echo "│ Continuity Status                   │"
   echo "├─────────────────────────────────────┤"
-  
+
   # Today's actions
   local today_count=0
-  if [ -f "$MEMORY_ACTION_STREAM" ]; then
-    today_count=$(wc -l < "$MEMORY_ACTION_STREAM" 2>/dev/null || echo 0)
+  if [ -f "$CONTINUITY_ACTION_STREAM" ]; then
+    today_count=$(wc -l < "$CONTINUITY_ACTION_STREAM" 2>/dev/null || echo 0)
   fi
   printf "│ Today's Actions: %-18s │\n" "$today_count"
-  
+
   # Active workflows
   local wf_count=0
-  if [ -d "$MEMORY_BASE_DIR/workflows/active" ]; then
-    wf_count=$(find "$MEMORY_BASE_DIR/workflows/active" -name "*.json" 2>/dev/null | wc -l)
+  if [ -d "$CONTINUITY_BASE_DIR/workflows/active" ]; then
+    wf_count=$(find "$CONTINUITY_BASE_DIR/workflows/active" -name "*.json" 2>/dev/null | wc -l)
   fi
   printf "│ Active Workflows: %-17s │\n" "$wf_count"
-  
+
   # Last action
   local last_time="none"
-  if [ -f "$MEMORY_ACTION_STREAM" ] && [ $today_count -gt 0 ]; then
-    last_time=$(tail -1 "$MEMORY_ACTION_STREAM" 2>/dev/null | jq -r '.action.timestamp' 2>/dev/null || echo "unknown")
+  if [ -f "$CONTINUITY_ACTION_STREAM" ] && [ $today_count -gt 0 ]; then
+    last_time=$(tail -1 "$CONTINUITY_ACTION_STREAM" 2>/dev/null | jq -r '.action.timestamp' 2>/dev/null || echo "unknown")
     if [ "$last_time" != "unknown" ] && [ "$last_time" != "null" ]; then
       # Convert to relative time
       last_time="recent"
     fi
   fi
   printf "│ Last Action: %-22s │\n" "$last_time"
-  
+
   # Integrity status
   local integrity="✓ valid"
-  if [ ! -f "$MEMORY_LAST_HASH_FILE" ]; then
+  if [ ! -f "$CONTINUITY_LAST_HASH_FILE" ]; then
     integrity="⚠ no chain"
   fi
   printf "│ Integrity: %-24s │\n" "$integrity"
-  
+
   # Backups
   local backup_count=0
-  if [ -d "$MEMORY_BASE_DIR/backups" ]; then
-    backup_count=$(ls -1 "$MEMORY_BASE_DIR/backups" 2>/dev/null | wc -l)
+  if [ -d "$CONTINUITY_BASE_DIR/backups" ]; then
+    backup_count=$(ls -1 "$CONTINUITY_BASE_DIR/backups" 2>/dev/null | wc -l)
   fi
   printf "│ Backups: %-26s │\n" "$backup_count files"
-  
+
   # Disk space
   local disk_mb=0
   if command -v df >/dev/null 2>&1; then
-    disk_mb=$(df -k "$MEMORY_BASE_DIR" 2>/dev/null | awk 'NR==2 {print int($4/1024)}')
+    disk_mb=$(df -k "$CONTINUITY_BASE_DIR" 2>/dev/null | awk 'NR==2 {print int($4/1024)}')
   fi
   printf "│ Disk: %-29s │\n" "${disk_mb}MB free"
-  
+
   echo "└─────────────────────────────────────┘"
 }
 
 # Wake up and load context (combines multiple checks)
-memory_wake() {
+continuity_wake() {
   echo "=== Waking Up ==="
   echo ""
-  
+
   # Verify continuity
-  memory_verify_continuity
+  continuity_verify_continuity
   echo ""
-  
+
   # Show status
-  memory_status
+  continuity_status
   echo ""
-  
+
   # List workflows
-  memory_list_workflows
+  continuity_list_workflows
   echo ""
-  
+
   # Summary
   local today_count=0
-  if [ -f "$MEMORY_ACTION_STREAM" ]; then
-    today_count=$(wc -l < "$MEMORY_ACTION_STREAM" 2>/dev/null || echo 0)
+  if [ -f "$CONTINUITY_ACTION_STREAM" ]; then
+    today_count=$(wc -l < "$CONTINUITY_ACTION_STREAM" 2>/dev/null || echo 0)
   fi
   
   if [ $today_count -gt 0 ]; then
     echo "Recent activity:"
-    memory_query --limit=3 2>/dev/null | head -3
+    continuity_query --limit=3 2>/dev/null | head -3
   fi
-  
+
   echo ""
   echo "=== Ready ==="
 }
 
 # Export functions
-export -f memory_uuid
-export -f memory_next_sequence
-export -f memory_previous_hash
-export -f memory_check_disk_space
-export -f memory_calculate_hash
-export -f memory_log_action
-export -f memory_log_critical
-export -f memory_checkpoint_workflow
-export -f memory_pre_compaction_checkpoint
-export -f memory_verify_continuity
-export -f memory_validate_integrity
-export -f memory_backup_manual
-export -f memory_health_check
-export -f memory_query
-export -f memory_last_action
-export -f memory_list_workflows
-export -f memory_status
-export -f memory_wake
-export -f memory_uuid
-export -f memory_next_sequence
-export -f memory_previous_hash
-export -f memory_check_disk_space
-export -f memory_calculate_hash
-export -f memory_log_action
-export -f memory_log_critical
-export -f memory_checkpoint_workflow
-export -f memory_pre_compaction_checkpoint
-export -f memory_verify_continuity
-export -f memory_validate_integrity
-export -f memory_backup_manual
-export -f memory_health_check
+export -f continuity_uuid
+export -f continuity_next_sequence
+export -f continuity_previous_hash
+export -f continuity_check_disk_space
+export -f continuity_calculate_hash
+export -f continuity_log_action
+export -f continuity_log_critical
+export -f continuity_checkpoint_workflow
+export -f continuity_pre_compaction_checkpoint
+export -f continuity_verify_continuity
+export -f continuity_validate_integrity
+export -f continuity_backup_manual
+export -f continuity_health_check
+export -f continuity_query
+export -f continuity_last_action
+export -f continuity_list_workflows
+export -f continuity_status
+export -f continuity_wake

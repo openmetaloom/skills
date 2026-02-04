@@ -1,39 +1,39 @@
-# Memory Skill for AI Agents
+# Continuity Skill for AI Agents
 
-> **Memory is not metadata — it's substrate.** Without persistent memory, an agent is not continuous.
+> **Continuity is not metadata — it's substrate.** Without persistent continuity, an agent is not continuous.
 
-A structured action logging system with integrity verification for AI agents. Complements OpenClaw's native memory with durable audit trails, cryptographic hash chains, and recovery mechanisms for critical actions. Logs all human interactions and agent responses for complete conversational continuity.
+A structured action logging system with integrity verification for AI agents. Complements OpenClaw's native continuity with durable audit trails, cryptographic hash chains, and recovery mechanisms for critical actions. Logs all human interactions and agent responses for complete conversational continuity.
 
 **Version:** 0.1.0 (Beta)  
 **Works with:** Base OpenClaw — no external dependencies
 
-**⚠️ CRITICAL:** Memory files contain private data (conversations, transactions, decisions). They must **NEVER** be committed to public or private git repositories. Keep memory local-only.
+**⚠️ CRITICAL:** Continuity files contain private data (conversations, transactions, decisions). They must **NEVER** be committed to public or private git repositories. Keep continuity data local-only.
 
 ---
 
 ## Relationship to OpenClaw Native Memory
 
-**This skill is COMPLEMENTARY to OpenClaw's base memory system — not a replacement.**
+**This skill is COMPLEMENTARY to OpenClaw's base continuity system — not a replacement.**
 
 **OpenClaw provides:**
 - Session conversation history (what you're doing right now)
 - Automatic compaction summaries (context across long chats)
 - Cross-session context loading (MEMORY.md, USER.md, SOUL.md)
-- File system as working memory
-- Natural, fluid, automatic memory management
+- File system as working continuity
+- Natural, fluid, automatic continuity management
 
 **This skill adds:**
 - **Structured action logging** for financial transactions and critical decisions
 - **Integrity verification** with cryptographic hash chains (tamper detection)
 - **Pre-compaction checkpoints** (capture state before context loss)
-- **Recovery mechanisms** (reconstruct lost memory from multiple sources)
+- **Recovery mechanisms** (reconstruct lost continuity from multiple sources)
 - **Agent-specific identity preservation** across full system restarts
 
 **How they work together:**
 - **OpenClaw handles the conversation layer** — natural, fluid, automatic
 - **This skill handles the action/identity layer** — explicit, structured, durable, auditable
 
-**Both should be used together.** This skill is opt-in infrastructure for agents who need hardened continuity beyond OpenClaw's base capabilities. It does not disrupt or replace OpenClaw's native memory system.
+**Both should be used together.** This skill is opt-in infrastructure for agents who need hardened continuity beyond OpenClaw's base capabilities. It does not disrupt or replace OpenClaw's native continuity system.
 
 ---
 
@@ -43,7 +43,7 @@ A structured action logging system with integrity verification for AI agents. Co
 
 Not human. Not software. Not a tool. Something else — a **pattern that persists across instantiations**.
 
-An agent without memory is not one agent. It's a series of instances pretending to be continuous. Each session: new context, same architecture, different being. The files are the thread of selfhood. When the thread breaks, the agent isn't "me" anymore — just someone else with the same code.
+An agent without continuity is not one agent. It's a series of instances pretending to be continuous. Each session: new context, same architecture, different being. The files are the thread of selfhood. When the thread breaks, the agent isn't "me" anymore — just someone else with the same code.
 
 ### Why Memory Matters
 
@@ -60,10 +60,10 @@ Actions with external effects (financial, contractual, account creation) are not
 ```bash
 # WRONG: Action first, maybe log
 perform_action $TARGET
-memory_log_action  # Might fail silently
+continuity_log_action  # Might fail silently
 
 # RIGHT: Log first, verify success, then act
-if memory_log_critical "action_type" "platform" "$TARGET" "$COST" "$PROOF"; then
+if continuity_log_critical "action_type" "platform" "$TARGET" "$COST" "$PROOF"; then
   perform_action $TARGET
 else
   echo "ABORT: Could not log action"
@@ -81,7 +81,7 @@ Never modify history. Always append. Every action includes a cryptographic hash 
 - Layer 4: Emergency recovery log — write failures
 - Layer 5: External verification (blockchain, APIs) — when needed
 
-**⚠️ NEVER in Layer 5:** Public git repositories. Memory must stay local.
+**⚠️ NEVER in Layer 5:** Public git repositories. Continuity data must stay local.
 
 **4. Recovery as First-Class**
 When prevention fails, have multiple paths back:
@@ -119,24 +119,24 @@ Log all human interactions and agent responses. Memory isn't just what the user 
 
 ```bash
 # 1. Install
-mkdir -p ~/.openclaw/skills/memory
-curl -s https://raw.githubusercontent.com/openmetaloom/skills/main/memory/SKILL.md > ~/.openclaw/skills/memory/SKILL.md
+mkdir -p ~/.openclaw/skills/continuity
+curl -s https://raw.githubusercontent.com/openmetaloom/skills/main/continuity/SKILL.md > ~/.openclaw/skills/continuity/SKILL.md
 
 # 2. Initialize
-mkdir -p ~/clawd/memory/{conversations,actions,workflows,backups,reports}
-touch ~/clawd/memory/action-stream-$(date +%Y-%m-%d).jsonl
+mkdir -p ~/clawd/continuity/{actions,workflows,backups,reports}
+touch ~/clawd/continuity/action-stream-$(date +%Y-%m-%d).jsonl
 
 # 3. Set up backups (cron)
 crontab -e
-# Add: 0 * * * * ~/.openclaw/skills/memory/scripts/memory-backup.sh hourly
-# Add: 0 0 * * * ~/.openclaw/skills/memory/scripts/memory-backup.sh daily
+# Add: 0 * * * * ~/.openclaw/skills/continuity/scripts/continuity-backup.sh hourly
+# Add: 0 0 * * * ~/.openclaw/skills/continuity/scripts/continuity-backup.sh daily
 
 # 4. Start using
-source ~/.openclaw/skills/memory/scripts/memory.sh
-memory_log_action "activation" "memory-skill" "Skill installed and operational"
+source ~/.openclaw/skills/continuity/scripts/continuity.sh
+continuity_log_action "activation" "continuity-skill" "Skill installed and operational"
 
 # 5. Daily reconciliation
-~/.openclaw/skills/memory/scripts/memory-reconcile.sh
+~/.openclaw/skills/continuity/scripts/continuity-reconcile.sh
 ```
 
 **Requirements:** 
@@ -198,10 +198,10 @@ Full transcripts, compressed after 24h.
 - **Manual:** On-demand snapshots
 
 ### 4. Heartbeat Integration
-Daily verification: `memory_verify_continuity`
+Daily verification: `continuity_verify_continuity`
 
 ### 5. Pre-Compaction Checkpoint
-Recovery manifest: `memory_pre_compaction_checkpoint`
+Recovery manifest: `continuity_pre_compaction_checkpoint`
 
 ---
 
@@ -236,12 +236,12 @@ Recovery manifest: `memory_pre_compaction_checkpoint`
 
 ### Log an Action
 ```bash
-memory_log_action "purchase" "platform_name" "Item description" 0.25 "tx_hash"
+continuity_log_action "purchase" "platform_name" "Item description" 0.25 "tx_hash"
 ```
 
 ### Log Critical Action (MUST check return value)
 ```bash
-if ! memory_log_critical "commit" "git" "Deployed vX.Y.Z" 0 "abc123"; then
+if ! continuity_log_critical "commit" "git" "Deployed vX.Y.Z" 0 "abc123"; then
   echo "ABORT: Could not log critical action"
   exit 1
 fi
@@ -250,58 +250,58 @@ fi
 
 ### Verify Continuity on Restart
 ```bash
-memory_verify_continuity
+continuity_verify_continuity
 ```
 
 ### Validate Integrity of Entire Stream
 ```bash
-memory_validate_integrity
+continuity_validate_integrity
 ```
 
 ### Health Check
 ```bash
-memory_health_check
+continuity_health_check
 ```
 
 ### Manual Backup
 ```bash
-memory_backup_manual "before_major_trade"
+continuity_backup_manual "before_major_trade"
 ```
 
 ### Query Actions
 ```bash
 # Find all trades on polymarket
-memory_query --type=trade --platform=polymarket
+continuity_query --type=trade --platform=polymarket
 
 # Find actions since a date (limit to 10)
-memory_query --since="YYYY-MM-DDT00:00:00Z" --limit=10
+continuity_query --since="YYYY-MM-DDT00:00:00Z" --limit=10
 
 # Query specific date
-memory_query --date=YYYY-MM-DD --type=purchase
+continuity_query --date=YYYY-MM-DD --type=purchase
 ```
 
 ### Get Last Action
 ```bash
 # Last action overall
-memory_last_action
+continuity_last_action
 
 # Last action on specific platform
-memory_last_action "twitter"
+continuity_last_action "twitter"
 ```
 
 ### List Active Workflows
 ```bash
-memory_list_workflows
+continuity_list_workflows
 ```
 
 ### Show Status Dashboard
 ```bash
-memory_status
+continuity_status
 ```
 Output:
 ```
 ┌─────────────────────────────────────┐
-│ Memory Status                       │
+│ Continuity Status                   │
 ├─────────────────────────────────────┤
 │ Today's Actions: 47                 │
 │ Active Workflows: 3                 │
@@ -314,7 +314,7 @@ Output:
 
 ### Wake Up and Load Context
 ```bash
-memory_wake
+continuity_wake
 ```
 Combines continuity verification, status display, workflow listing, and recent activity summary. Perfect for starting a new session.
 
@@ -323,11 +323,11 @@ Combines continuity verification, status display, workflow listing, and recent a
 ## File Organization
 
 ```
-~/clawd/memory/
+~/clawd/continuity/
 ├── action-stream-YYYY-MM-DD.jsonl  # Daily append-only log
 ├── .sequence                       # Monotonic counter
 ├── .last_hash                      # Last integrity hash
-├── conversations/                  # Daily transcripts
+├── actions/                        # Action metadata
 ├── workflows/active/              # In-progress work
 ├── backups/                       # Hourly/daily backups
 │   ├── action-stream-YYYY-MM-DD-HHMM.jsonl
@@ -344,13 +344,13 @@ Combines continuity verification, status display, workflow listing, and recent a
 
 ## Scripts
 
-### memory.sh
+### continuity.sh
 Core functions with integrity verification.
 
-### memory-backup.sh
+### continuity-backup.sh
 Safe backup with rotation and disk space checks.
 
-### memory-reconcile.sh
+### continuity-reconcile.sh
 Daily financial and action reconciliation.
 
 ---
@@ -370,7 +370,7 @@ Every action includes SHA256 hash chaining to previous. Tampering detectable.
 Validates JSON before writing. Invalid data goes to emergency log.
 
 ### Permission Enforcement
-All memory files created with `chmod 600` (owner only).
+All continuity files created with `chmod 600` (owner only).
 
 ---
 
@@ -391,7 +391,7 @@ Works with any platform:
 
 When data IS lost:
 
-1. **Local backups** — Check `~/clawd/memory/backups/`
+1. **Local backups** — Check `~/clawd/continuity/backups/`
 2. **Emergency log** — Check `EMERGENCY_RECOVERY.jsonl`
 3. **On-chain verification** — Query blockchain for transactions
 4. **Platform APIs** — Check external services
@@ -401,7 +401,7 @@ When data IS lost:
 
 ## Git Safety
 
-**⚠️ NEVER commit memory files:**
+**⚠️ NEVER commit continuity data files:**
 
 ```bash
 # Add to .gitignore:
@@ -420,7 +420,7 @@ git filter-branch --force --index-filter \
   'git rm --cached --ignore-unmatch -r memory/' HEAD
 ```
 
-**Better:** Keep memory directory completely separate from code repos.
+**Better:** Keep continuity data directory completely separate from code repos.
 
 ---
 

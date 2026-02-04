@@ -1,10 +1,10 @@
 #!/bin/bash
-# memory-backup.sh - Local backup system for agent memory
+# continuity-backup.sh - Local backup system for agent continuity
 # Version: 0.1.0 - Hardened with safety checks
-# Usage: memory-backup.sh [hourly|daily|manual "description"]
+# Usage: continuity-backup.sh [hourly|daily|manual "description"]
 
-MEMORY_DIR="${MEMORY_BASE_DIR:-$HOME/clawd/memory}"
-BACKUP_DIR="$MEMORY_DIR/backups"
+CONTINUITY_DIR="${CONTINUITY_BASE_DIR:-$HOME/clawd/continuity}"
+BACKUP_DIR="$CONTINUITY_DIR/backups"
 
 # Safety limits
 MIN_DISK_SPACE_KB=10240  # 10MB
@@ -59,9 +59,9 @@ backup_hourly() {
   if ! check_disk_space; then
     return 1
   fi
-  
+
   local timestamp=$(date +%Y%m%d-%H%M)
-  local current_stream="$MEMORY_DIR/action-stream-$(date +%Y-%m-%d).jsonl"
+  local current_stream="$CONTINUITY_DIR/action-stream-$(date +%Y-%m-%d).jsonl"
   
   if [ ! -f "$current_stream" ]; then
     echo "No action stream to backup"
@@ -95,9 +95,9 @@ backup_daily() {
   if ! check_disk_space; then
     return 1
   fi
-  
+
   local yesterday=$(date -d "yesterday" +%Y-%m-%d 2>/dev/null || date -v-1d +%Y-%m-%d)
-  local yesterday_stream="$MEMORY_DIR/action-stream-$yesterday.jsonl"
+  local yesterday_stream="$CONTINUITY_DIR/action-stream-$yesterday.jsonl"
   
   if [ ! -f "$yesterday_stream" ]; then
     echo "No yesterday's stream to archive"
@@ -134,16 +134,16 @@ backup_daily() {
 
 backup_manual() {
   local description="${1:-manual}"
-  
+
   # Sanitize description for filename
   description=$(echo "$description" | tr -cd '[:alnum:]-_' | cut -c1-50)
-  
+
   if ! check_disk_space; then
     return 1
   fi
-  
+
   local timestamp=$(date +%Y%m%d-%H%M%S)
-  local current_stream="$MEMORY_DIR/action-stream-$(date +%Y-%m-%d).jsonl"
+  local current_stream="$CONTINUITY_DIR/action-stream-$(date +%Y-%m-%d).jsonl"
   
   if [ ! -f "$current_stream" ]; then
     echo "No action stream to backup"

@@ -4,8 +4,8 @@ A collection of agent skills for OpenClaw — tools that extend AI agent capabil
 
 ## Available Skills
 
-### [Memory](./memory/) — Structured Action Logging
-A durable action logging system with integrity verification for AI agents who need audit trails beyond conversation memory.
+### [Continuity](./continuity/) — Structured Action Logging
+A durable action logging system with integrity verification for AI agents who need audit trails beyond conversation continuity.
 
 - Append-only action streams with cryptographic hash chains
 - Pre-compaction checkpoints
@@ -17,8 +17,8 @@ A durable action logging system with integrity verification for AI agents who ne
 
 ```bash
 # Install a skill
-mkdir -p ~/.openclaw/skills/memory
-curl -s https://raw.githubusercontent.com/openmetaloom/skills/main/memory/SKILL.md > ~/.openclaw/skills/memory/SKILL.md
+mkdir -p ~/.openclaw/skills/continuity
+curl -s https://raw.githubusercontent.com/openmetaloom/skills/main/continuity/SKILL.md > ~/.openclaw/skills/continuity/SKILL.md
 
 # Follow the skill's README for setup
 ```
