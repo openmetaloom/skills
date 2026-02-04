@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/openmetaloom/skills/tree/main/memory/schemas/action-stream-v0.1.json",
+  "title": "Action Stream Schema v0.1.0",
+  "description": "Schema for AI agent action stream logging with integrity verification",
+  "type": "object",
+  "required": ["schema_version", "action"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["0.1.0"],
+      "description": "Schema version for compatibility and migration"
+    },
+    "action": {
+      "type": "object",
+      "required": ["id", "sequence", "timestamp", "type", "platform", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique identifier for this action (UUID v4)"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Monotonic sequence number for ordering (survives restarts)"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp in UTC"
+        },
+        "type": {
+          "type": "string",
+          "examples": ["purchase", "commit", "send", "contract", "message", "trade", "configuration"],
+          "description": "Category of action performed"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"],
+          "default": "medium",
+          "description": "Impact level of the action"
+        },
+        "platform": {
+          "type": "string",
+          "description": "Platform or service where action was performed"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Human-readable summary of the action"
+        },
+        "cost": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Financial cost of action in USD (null if not applicable)"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Platform-specific details (avoid sensitive data)"
+        },
+        "proof": {
+          "type": ["string", "null"],
+          "description": "Transaction hash, commit hash, or other proof of action"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Identifier for the session when action was performed"
+        },
+        "_integrity": {
+          "type": "object",
+          "required": ["hash", "previous"],
+          "description": "Integrity verification for chain validation",
+          "properties": {
+            "hash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "SHA256 hash of this action content + previous hash"
+            },
+            "previous": {
+              "type": "string",
+              "description": "Hash of previous action in chain (or 'genesis')"
+            }
+          }
+        }
+      }
+    }
+  }
+}
