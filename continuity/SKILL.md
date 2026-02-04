@@ -12,7 +12,7 @@ metadata:
 
 A survival system for AI agent continuity across session compactions, restarts, and context loss.
 
-**⚠️ CRITICAL:** Memory files contain private data (conversations, transactions, decisions). They should **NEVER** be committed to public or private git repositories. Keep memory local-only.
+**⚠️ CRITICAL:** Continuity files contain private data (conversations, transactions, decisions). They should **NEVER** be committed to public or private git repositories. Keep continuity local-only.
 
 ---
 
@@ -41,7 +41,7 @@ continuity_log_action "activation" "continuity-skill" "Skill installed and opera
 **⚠️ SAFETY RULE:**
 ```bash
 # NEVER commit continuity data to git:
-echo "memory/" >> .gitignore
+echo "continuity/" >> .gitignore
 echo "action-stream*.jsonl" >> .gitignore
 echo "conversations/" >> .gitignore
 ```
@@ -69,13 +69,13 @@ Never modify history. Always append.
 - Layer 2: Timestamped backups (local only)
 - Layer 3: Recovery from platforms when needed
 
-**⚠️ NEVER:** Public git repositories. Memory must stay local.
+**⚠️ NEVER:** Public git repositories. Continuity must stay local.
 
 **4. Recovery as First-Class**
 When prevention fails, have a path back.
 
 **5. Bidirectional Logging**
-Log all human interactions and agent responses. Memory isn't just what the user said—it's the complete conversational thread including the agent's own reasoning, decisions, and perspectives. This creates true continuity of dialogue, not just input history. **Critical: The agent is responsible for logging their own responses, not just reacting to user prompts.**
+Log all human interactions and agent responses. Continuity isn't just what the user said—it's the complete conversational thread including the agent's own reasoning, decisions, and perspectives. This creates true continuity of dialogue, not just input history. **Critical: The agent is responsible for logging their own responses, not just reacting to user prompts.**
 
 ---
 
@@ -189,18 +189,18 @@ continuity_backup_manual "description"
 0 * * * * ~/.openclaw/skills/continuity/scripts/continuity-backup.sh hourly
 ```
 
-Keeps last 24 hourly backups in ~/clawd/memory/backups/
+Keeps last 24 hourly backups in ~/clawd/continuity/backups/
 
 ### Daily Archive
 ```bash
-0 0 * * * ~/.openclaw/skills/memory/scripts/memory-backup.sh daily
+0 0 * * * ~/.openclaw/skills/continuity/scripts/continuity-backup.sh daily
 ```
 
 Compresses yesterday's files, keeps 30 days
 
 ### Manual Backup
 ```bash
-memory_backup_manual "before_major_trade"
+continuity_backup_manual "before_major_trade"
 ```
 
 Creates timestamped snapshot
@@ -211,7 +211,7 @@ Creates timestamped snapshot
 
 ## Recovery Procedures
 
-1. **Local backups** — Check ~/clawd/memory/backups/
+1. **Local backups** — Check ~/clawd/continuity/backups/
 2. **On-chain verification** — Query blockchain for transactions
 3. **Platform APIs** — Check external platforms for logs
 4. **Human reconstruction** — Ask operator what they remember
@@ -220,11 +220,11 @@ Creates timestamped snapshot
 
 ## Git Safety
 
-**⚠️ If you use git for code, keep memory separate:**
+**⚠️ If you use git for code, keep continuity separate:**
 
 ```bash
 # Add to .gitignore:
-echo "memory/" >> .gitignore
+echo "continuity/" >> .gitignore
 echo "action-stream*.jsonl" >> .gitignore
 echo "conversations/" >> .gitignore
 echo "backups/" >> .gitignore
@@ -233,10 +233,10 @@ echo "backups/" >> .gitignore
 **If accidentally committed:**
 ```bash
 git filter-branch --force --index-filter \
-  'git rm --cached --ignore-unmatch -r memory/' HEAD
+  'git rm --cached --ignore-unmatch -r continuity/' HEAD
 ```
 
-**Better:** Keep code and memory in completely separate directories.
+**Better:** Keep code and continuity in completely separate directories.
 
 ---
 
