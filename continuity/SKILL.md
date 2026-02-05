@@ -2,7 +2,7 @@
 name: continuity
 description: Persistent continuity management for AI agents. Ensures continuity across sessions, prevents data loss from compaction, and maintains reliable audit trails. Logs all human interactions and agent responses for complete conversational continuity. Works with base OpenClaw — no external dependencies. Continuity data stays local-only, never in git.
 metadata:
-  version: "0.2.0"
+  version: "0.2.1"
   license: "MIT"
 ---
 

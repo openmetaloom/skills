@@ -1,6 +1,6 @@
 #!/bin/bash
 # continuity.sh - Core continuity logging functions for AI agents
-# Version: 0.2.0 - Environment variable configuration support
+# Version: 0.2.1 - Auto-recall integration workflow
 #
 # SAFETY: Continuity files contain private data. NEVER commit to git.
 # Keep in ~/clawd/continuity/ only, with proper .gitignore rules.
@@ -978,6 +978,54 @@ continuity_wake_with_recall() {
     echo "=== Ready ==="
 }
 
+# ============================================================================
+# AUTO-RECALL INTEGRATION (v0.2.1)
+# ============================================================================
+
+# Main function for agent workflow: recall context, then respond, then log
+# Usage: continuity_agent_workflow "response_text" "response_type" [metadata_json]
+# This should be called automatically before sending any response
+continuity_agent_workflow() {
+    local response_text="$1"
+    local response_type="${2:-general}"
+    local metadata="${3:-{}}"
+    
+    # Step 1: Recall context (if not disabled)
+    local context=""
+    if [ "$CONTINUITY_RECALL_MODE" != "off" ]; then
+        context=$(continuity_recall_context "$CONTINUITY_RECALL_LIMIT")
+        # Store context in environment for agent to access
+        export _CONTINUITY_LAST_CONTEXT="$context"
+    fi
+    
+    # Step 2: Log the response (if enabled)
+    if continuity_should_log "$response_type"; then
+        continuity_log_response "$response_text" "$response_type" "$metadata"
+    fi
+    
+    # Return the context for the agent to use
+    echo "${context:-[]}"
+}
+
+# Get the last recalled context (for use after workflow)
+# Usage: last_context=$(continuity_get_last_context)
+continuity_get_last_context() {
+    echo "${_CONTINUITY_LAST_CONTEXT:-[]}"
+}
+
+# Quick helper to show what would be recalled before responding
+# Usage: continuity_preview_context
+continuity_preview_context() {
+    if [ "$CONTINUITY_RECALL_MODE" = "off" ]; then
+        echo "(Recall mode is OFF)"
+        return 0
+    fi
+    
+    echo "=== Context that will be available for this response ==="
+    echo ""
+    continuity_recall_summary
+}
+
 # Export functions
 export -f continuity_uuid
 export -f continuity_next_sequence
@@ -1004,3 +1052,6 @@ export -f continuity_log_response
 export -f continuity_recall_context
 export -f continuity_recall_summary
 export -f continuity_wake_with_recall
+export -f continuity_agent_workflow
+export -f continuity_get_last_context
+export -f continuity_preview_context
