@@ -870,17 +870,44 @@ continuity_recall_context() {
             ;;
             
         both)
-            # Combine both sources
-            local continuity_results=""
-            continuity_results=$(continuity_query --limit="$limit" 2>/dev/null)
-            if [ -n "$continuity_results" ]; then
-                echo "$continuity_results" | jq -R '. | try fromjson catch empty' | jq -s '.'
-            else
-                echo "[]"
+            # Combine both continuity and OpenClaw native memory
+            local continuity_results="[]"
+            local openclaw_results="[]"
+            
+            # Get continuity results
+            local cont_query=$(continuity_query --limit="$limit" 2>/dev/null)
+            if [ -n "$cont_query" ]; then
+                continuity_results=$(echo "$cont_query" | jq -R '. | try fromjson catch empty' | jq -s '.')
             fi
             
-            # TODO: When OpenClaw memory integration is available, merge here
-            # For now, just return continuity results
+            # Get OpenClaw native memory context (from MEMORY.md and session)
+            # Read MEMORY.md summary if available
+            if [ -f "$HOME/clawd/MEMORY.md" ]; then
+                # Get last modified time of MEMORY.md
+                local memory_mtime=$(stat -c %Y "$HOME/clawd/MEMORY.md" 2>/dev/null || echo "0")
+                local current_time=$(date +%s)
+                local memory_age=$((current_time - memory_mtime))
+                
+                # Only include if recently updated (within 24 hours)
+                if [ $memory_age -lt 86400 ]; then
+                    openclaw_results=$(cat <<EOF | jq -s '.'
+{
+  "source": "openclaw_memory",
+  "type": "memory_context",
+  "timestamp": "$(date -u -d @$memory_mtime +%Y-%m-%dT%H:%M:%SZ)",
+  "description": "OpenClaw MEMORY.md last updated $(($memory_age / 3600)) hours ago",
+  "metadata": {
+    "actor": "system",
+    "source_type": "openclaw_native"
+  }
+}
+EOF
+)
+                fi
+            fi
+            
+            # Merge results: continuity first, then OpenClaw context
+            echo "$continuity_results" | jq --argjson openclaw "$openclaw_results" '. + $openclaw'
             return 0
             ;;
             
