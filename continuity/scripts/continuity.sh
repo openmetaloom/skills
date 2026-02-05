@@ -1,9 +1,80 @@
 #!/bin/bash
 # continuity.sh - Core continuity logging functions for AI agents
-# Version: 0.1.0 - Hardened for production use
+# Version: 0.2.0 - Environment variable configuration support
 #
 # SAFETY: Continuity files contain private data. NEVER commit to git.
 # Keep in ~/clawd/continuity/ only, with proper .gitignore rules.
+
+# ============================================================================
+# CONFIGURATION LOADING
+# ============================================================================
+
+# Configuration defaults (these are used if env vars not set)
+: "${CONTINUITY_RECALL_MODE:=both}"
+: "${CONTINUITY_LOG_LEVEL:=everything}"
+: "${CONTINUITY_RECALL_LIMIT:=10}"
+: "${CONTINUITY_STRICT_VALIDATION:=false}"
+: "${CONTINUITY_EMERGENCY_STDERR:=true}"
+
+# Source user configuration file if it exists
+CONTINUITY_CONFIG_FILE="${HOME}/.openclaw/skills/continuity/config.env"
+if [ -f "$CONTINUITY_CONFIG_FILE" ]; then
+    # Use set -a to export all variables defined in the file
+    set -a
+    source "$CONTINUITY_CONFIG_FILE" 2>/dev/null || true
+    set +a
+fi
+
+# Validate configuration values
+_continuity_validate_config() {
+    local errors=0
+    
+    # Validate RECALL_MODE
+    case "$CONTINUITY_RECALL_MODE" in
+        off|openclaw_only|continuity_only|both)
+            ;;
+        *)
+            echo "WARNING: Invalid CONTINUITY_RECALL_MODE='$CONTINUITY_RECALL_MODE', using 'both'" >&2
+            CONTINUITY_RECALL_MODE="both"
+            errors=$((errors + 1))
+            ;;
+    esac
+    
+    # Validate LOG_LEVEL
+    case "$CONTINUITY_LOG_LEVEL" in
+        off|judgment|everything)
+            ;;
+        *)
+            echo "WARNING: Invalid CONTINUITY_LOG_LEVEL='$CONTINUITY_LOG_LEVEL', using 'everything'" >&2
+            CONTINUITY_LOG_LEVEL="everything"
+            errors=$((errors + 1))
+            ;;
+    esac
+    
+    # Validate RECALL_LIMIT (must be positive integer)
+    if ! [[ "$CONTINUITY_RECALL_LIMIT" =~ ^[0-9]+$ ]] || [ "$CONTINUITY_RECALL_LIMIT" -lt 1 ]; then
+        echo "WARNING: Invalid CONTINUITY_RECALL_LIMIT='$CONTINUITY_RECALL_LIMIT', using 10" >&2
+        CONTINUITY_RECALL_LIMIT=10
+        errors=$((errors + 1))
+    fi
+    
+    return $errors
+}
+
+# Run validation on load
+_continuity_validate_config
+
+# Export validated configuration
+export CONTINUITY_RECALL_MODE
+export CONTINUITY_LOG_LEVEL
+export CONTINUITY_RECALL_LIMIT
+export CONTINUITY_STRICT_VALIDATION
+export CONTINUITY_EMERGENCY_STDERR
+export CONTINUITY_CONFIG_FILE
+
+# ============================================================================
+# END CONFIGURATION LOADING
+# ============================================================================
 
 CONTINUITY_BASE_DIR="${CONTINUITY_BASE_DIR:-$HOME/clawd/continuity}"
 CONTINUITY_ACTION_STREAM="$CONTINUITY_BASE_DIR/action-stream-$(date +%Y-%m-%d).jsonl"
@@ -637,6 +708,249 @@ continuity_wake() {
   echo "=== Ready ==="
 }
 
+# ============================================================================
+# CONFIGURATION FUNCTIONS (v0.2.0)
+# ============================================================================
+
+# Display current configuration
+continuity_show_config() {
+    echo "=== Continuity Configuration ==="
+    echo ""
+    echo "Recall Mode:        $CONTINUITY_RECALL_MODE"
+    echo "  (off | openclaw_only | continuity_only | both)"
+    echo ""
+    echo "Log Level:          $CONTINUITY_LOG_LEVEL"
+    echo "  (off | judgment | everything)"
+    echo ""
+    echo "Recall Limit:       $CONTINUITY_RECALL_LIMIT entries"
+    echo "Strict Validation:  $CONTINUITY_STRICT_VALIDATION"
+    echo "Emergency Stderr:   $CONTINUITY_EMERGENCY_STDERR"
+    echo ""
+    echo "Base Directory:     $CONTINUITY_BASE_DIR"
+    echo "Config File:        $CONTINUITY_CONFIG_FILE"
+    echo ""
+}
+
+# Set configuration value (creates or updates config.env)
+continuity_set_config() {
+    local key="$1"
+    local value="$2"
+    
+    if [ -z "$key" ] || [ -z "$value" ]; then
+        echo "Usage: continuity_set_config <KEY> <VALUE>" >&2
+        echo "Example: continuity_set_config CONTINUITY_LOG_LEVEL judgment" >&2
+        return 1
+    fi
+    
+    # Validate key is a known configuration option
+    case "$key" in
+        CONTINUITY_RECALL_MODE|CONTINUITY_LOG_LEVEL|CONTINUITY_RECALL_LIMIT|CONTINUITY_STRICT_VALIDATION|CONTINUITY_EMERGENCY_STDERR)
+            ;;
+        *)
+            echo "ERROR: Unknown configuration key: $key" >&2
+            return 1
+            ;;
+    esac
+    
+    # Create config file if it doesn't exist
+    if [ ! -f "$CONTINUITY_CONFIG_FILE" ]; then
+        mkdir -p "$(dirname "$CONTINUITY_CONFIG_FILE")"
+        cat > "$CONTINUITY_CONFIG_FILE" << 'EOF'
+# ~/.openclaw/skills/continuity/config.env
+# Continuity Skill Configuration
+# Generated automatically - edit with: continuity_set_config
+
+EOF
+        chmod 600 "$CONTINUITY_CONFIG_FILE"
+    fi
+    
+    # Update or add the configuration value
+    if grep -q "^$key=" "$CONTINUITY_CONFIG_FILE"; then
+        # Update existing line
+        sed -i "s/^$key=.*/$key=$value/" "$CONTINUITY_CONFIG_FILE"
+    else
+        # Add new line
+        echo "$key=$value" >> "$CONTINUITY_CONFIG_FILE"
+    fi
+    
+    echo "✓ Set $key=$value"
+    echo "  (Run 'source ~/.openclaw/skills/continuity/scripts/continuity.sh' to reload)"
+}
+
+# ============================================================================
+# RECALL MODE FUNCTIONS (v0.2.0)
+# ============================================================================
+
+# Check if current log level permits logging this response type
+# Returns: 0 if should log, 1 if should not log
+continuity_should_log() {
+    local response_type="${1:-everything}"
+    
+    case "$CONTINUITY_LOG_LEVEL" in
+        off)
+            return 1  # Don't log anything
+            ;;
+        judgment)
+            # Only log judgment/decision type responses
+            case "$response_type" in
+                judgment|decision|analysis|conclusion|recommendation|insight)
+                    return 0
+                    ;;
+                *)
+                    return 1
+                    ;;
+            esac
+            ;;
+        everything)
+            return 0  # Log everything
+            ;;
+        *)
+            return 0  # Default to logging
+            ;;
+    esac
+}
+
+# Log an agent response automatically based on LOG_LEVEL
+# Usage: continuity_log_response "response_text" "response_type" [metadata_json]
+continuity_log_response() {
+    local response_text="$1"
+    local response_type="${2:-general}"
+    local metadata="${3:-{}}"
+    
+    # Check if we should log this response type
+    if ! continuity_should_log "$response_type"; then
+        return 0  # Silently skip
+    fi
+    
+    # Truncate very long responses
+    local truncated_response="$response_text"
+    if [ "${#response_text}" -gt 1000 ]; then
+        truncated_response="${response_text:0:997}..."
+        metadata=$(echo "$metadata" | jq --arg full_len "${#response_text}" '. + {full_length: $full_len, truncated: true}')
+    fi
+    
+    # Log as an action with actor metadata
+    local enriched_metadata=$(echo "$metadata" | jq --arg type "$response_type" '. + {response_type: $type, actor: "agent"}')
+    
+    continuity_log_action "agent_response" "continuity" "$truncated_response" "0" "n/a" "$enriched_metadata"
+}
+
+# Query previous context based on RECALL_MODE setting
+# Returns: JSON array of previous actions/context
+# Usage: context=$(continuity_recall_context [limit])
+continuity_recall_context() {
+    local limit="${1:-$CONTINUITY_RECALL_LIMIT}"
+    local results=""
+    
+    case "$CONTINUITY_RECALL_MODE" in
+        off)
+            # No automatic recall
+            echo "[]"
+            return 0
+            ;;
+            
+        openclaw_only)
+            # Only use OpenClaw's native memory
+            # This would integrate with OpenClaw's memory system
+            # For now, returns empty (placeholder for integration)
+            echo "[]"
+            return 0
+            ;;
+            
+        continuity_only)
+            # Only use continuity action stream
+            results=$(continuity_query --limit="$limit" 2>/dev/null)
+            if [ -n "$results" ]; then
+                # Convert JSON lines to array
+                echo "$results" | jq -R '. | try fromjson catch empty' | jq -s '.'
+            else
+                echo "[]"
+            fi
+            return 0
+            ;;
+            
+        both)
+            # Combine both sources
+            local continuity_results=""
+            continuity_results=$(continuity_query --limit="$limit" 2>/dev/null)
+            if [ -n "$continuity_results" ]; then
+                echo "$continuity_results" | jq -R '. | try fromjson catch empty' | jq -s '.'
+            else
+                echo "[]"
+            fi
+            
+            # TODO: When OpenClaw memory integration is available, merge here
+            # For now, just return continuity results
+            return 0
+            ;;
+            
+        *)
+            # Should never reach here due to validation
+            echo "ERROR: Invalid RECALL_MODE: $CONTINUITY_RECALL_MODE" >&2
+            echo "[]"
+            return 1
+            ;;
+    esac
+}
+
+# Get human-readable summary of recent context
+# Usage: continuity_recall_summary
+continuity_recall_summary() {
+    if [ "$CONTINUITY_RECALL_MODE" = "off" ]; then
+        echo "(Recall mode is OFF - no previous context loaded)"
+        return 0
+    fi
+    
+    local context=$(continuity_recall_context "$CONTINUITY_RECALL_LIMIT")
+    local count=$(echo "$context" | jq 'length')
+    
+    if [ "$count" -eq 0 ]; then
+        echo "(No previous context available)"
+        return 0
+    fi
+    
+    echo "=== Recent Context (mode: $CONTINUITY_RECALL_MODE) ==="
+    echo ""
+    echo "$context" | jq -r '.[] | "[\(.time // "unknown")] \(.type // "unknown"): \(.desc // "no description")[:60]"'
+    echo ""
+    echo "($count previous actions recalled)"
+}
+
+# ============================================================================
+# ENHANCED WAKE FUNCTION (v0.2.0)
+# ============================================================================
+
+# Enhanced wake function with recall support
+continuity_wake_with_recall() {
+    echo "=== Waking Up ==="
+    echo ""
+    
+    # Show configuration
+    continuity_show_config
+    echo ""
+    
+    # Verify continuity
+    continuity_verify_continuity
+    echo ""
+    
+    # Show status
+    continuity_status
+    echo ""
+    
+    # Recall previous context based on RECALL_MODE
+    if [ "$CONTINUITY_RECALL_MODE" != "off" ]; then
+        echo "=== Recalled Context ==="
+        continuity_recall_summary
+        echo ""
+    fi
+    
+    # List workflows
+    continuity_list_workflows
+    echo ""
+    
+    echo "=== Ready ==="
+}
+
 # Export functions
 export -f continuity_uuid
 export -f continuity_next_sequence
@@ -656,3 +970,10 @@ export -f continuity_last_action
 export -f continuity_list_workflows
 export -f continuity_status
 export -f continuity_wake
+export -f continuity_show_config
+export -f continuity_set_config
+export -f continuity_should_log
+export -f continuity_log_response
+export -f continuity_recall_context
+export -f continuity_recall_summary
+export -f continuity_wake_with_recall
