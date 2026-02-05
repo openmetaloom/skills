@@ -59,7 +59,18 @@
         "metadata": {
           "type": "object",
           "additionalProperties": true,
-          "description": "Platform-specific details (avoid sensitive data)"
+          "description": "Platform-specific details (avoid sensitive data)",
+          "properties": {
+            "actor": {
+              "type": "string",
+              "enum": ["human", "agent", "system", "cron"],
+              "description": "Who performed the action"
+            },
+            "response_type": {
+              "type": "string",
+              "description": "Type of response (for agent responses)"
+            }
+          }
         },
         "proof": {
           "type": ["string", "null"],

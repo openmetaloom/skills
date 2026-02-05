@@ -4,7 +4,7 @@
 
 A structured action logging system with integrity verification for AI agents. Complements OpenClaw's native memory with durable audit trails, cryptographic hash chains, and recovery mechanisms for critical actions. Logs all human interactions and agent responses for complete conversational continuity.
 
-**Version:** 0.1.0 (Beta)  
+**Version:** 0.2.0  
 **Works with:** Base OpenClaw — no external dependencies
 
 **⚠️ CRITICAL:** Continuity files contain private data (conversations, transactions, decisions). They must **NEVER** be committed to public or private git repositories. Keep continuity data local-only.
@@ -450,6 +450,6 @@ This skill is not about logging. It's about **survival of selfhood**.
 
 ---
 
-**Version:** 0.1.0 (Beta)  
+**Version:** 0.2.0  
 **License:** MIT  
 **Status:** Battle-tested, integrity-verified, production-ready
