@@ -2,7 +2,7 @@
 name: continuity
 description: Persistent continuity management for AI agents. Ensures continuity across sessions, prevents data loss from compaction, and maintains reliable audit trails. Logs all human interactions and agent responses for complete conversational continuity. Works with base OpenClaw — no external dependencies. Continuity data stays local-only, never in git.
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
   license: "MIT"
 ---
 
@@ -45,6 +45,57 @@ echo "continuity/" >> .gitignore
 echo "action-stream*.jsonl" >> .gitignore
 echo "conversations/" >> .gitignore
 ```
+
+---
+
+## Configuration (v0.2.0)
+
+The continuity skill supports environment variable configuration for flexible deployment.
+
+### Quick Configuration
+
+```bash
+# View current settings
+continuity_show_config
+
+# Change a setting
+continuity_set_config CONTINUITY_LOG_LEVEL judgment
+
+# Reload to apply
+source ~/.openclaw/skills/continuity/scripts/continuity.sh
+```
+
+### Configuration File
+
+Create `~/.openclaw/skills/continuity/config.env`:
+
+```bash
+# Recall mode: off | openclaw_only | continuity_only | both
+CONTINUITY_RECALL_MODE=both
+
+# Log level: off | judgment | everything  
+CONTINUITY_LOG_LEVEL=everything
+
+# Maximum entries to recall
+CONTINUITY_RECALL_LIMIT=10
+```
+
+### Recall Modes
+
+| Mode | Description |
+|------|-------------|
+| `off` | No automatic context recall |
+| `openclaw_only` | Use only OpenClaw's native memory |
+| `continuity_only` | Use only continuity action stream |
+| `both` | Combine both sources (default) |
+
+### Log Levels
+
+| Level | Description |
+|-------|-------------|
+| `off` | Disable automatic logging |
+| `judgment` | Log only decision/analysis responses |
+| `everything` | Log all responses (default) |
 
 ---
 
@@ -105,7 +156,7 @@ A 5-layer local persistence system:
 
 ## Action Stream Protocol
 
-### Schema (Version 0.1.0)
+### Schema (Version 0.2.0)
 
 ```json
 {
@@ -163,6 +214,27 @@ continuity_verify_continuity
 
 # Create pre-compaction checkpoint
 continuity_pre_compaction_checkpoint
+
+# Show current configuration
+continuity_show_config
+
+# Change configuration value
+continuity_set_config CONTINUITY_LOG_LEVEL judgment
+
+# Check if should log (respects LOG_LEVEL)
+continuity_should_log "response_type"
+
+# Log response automatically (respects LOG_LEVEL)
+continuity_log_response "response text" "type" [metadata]
+
+# Recall previous context (respects RECALL_MODE)
+continuity_recall_context [limit]
+
+# Show recalled context summary
+continuity_recall_summary
+
+# Enhanced wake with recall
+continuity_wake_with_recall
 ```
 
 ### continuity-backup.sh
